@@ -23,20 +23,14 @@ class Tile:
         """Identifies if the tile is filled."""
         return self.value != 0
 
-
-class Puzzle:
-    """A puzzle stores a given board configuration by a matrix of Tiles, containing methods to find a solution and extract data from the board."""
+class Board:
+    """"Board stores a given board configuration by a matrix of Tiles, containing methods to extract data from the board."""
     def __init__(self, config: list[str]):
-        """Initialise a puzzle board based on a config (list of rows of the puzzle)."""
         self.board = []
         for j, line in enumerate(config):
             tile_line = [Tile(value, (i, j)) for i, value in enumerate(line)]
             self.board.append(tile_line)
-
-        self.is_solved = False
-        self.is_solvable = True
-        self.state_changed = False
-
+            
     def __str__(self): 
         output = ""
         for j in range(9):
@@ -46,7 +40,7 @@ class Puzzle:
                 line += (value if value != '0' else '.') + (" | " if (i+1) % 3 == 0 and i != 8 else " ")
             output += line + ('\n' if j != 8 else '') + (('-' * 21) + '\n' if (j+1) % 3 == 0 and j != 8 else '')
         return output 
-
+    
 
     def fill_tile(self, value: int, pos: tuple[int]):
         """Replace a tile at a specified position with a specified value."""
@@ -94,6 +88,19 @@ class Puzzle:
         return tiles
 
 
+class Puzzle:
+    """A puzzle creates a Board using a given config, containing methods to find a solution."""
+    def __init__(self, config: list[str]):
+        """Initialise a puzzle board based on a config (list of rows of the puzzle)."""
+        self.board = Board(config)
+
+        self.is_solved = False
+        self.is_solvable = True
+        self.state_changed = False
+
+    def __str__(self): 
+        return str(self.board)
+
     def valid_tiles(self, tiles: list[Tile]) -> bool:
         """Indentifies if a given list of tiles has unique values."""
         
@@ -108,11 +115,11 @@ class Puzzle:
     
     def check_if_valid(self) -> bool:
         """Identifies if the current board configuration is valid, by checking each row, column and square has unique values."""
-        for row in self.get_rows():
+        for row in self.board.get_rows():
             if not self.valid_tiles(row): return False
-        for column in self.get_columns():
+        for column in self.board.get_columns():
             if not self.valid_tiles(column): return False
-        for square in self.get_squares():
+        for square in self.board.get_squares():
             if not self.valid_tiles(square): return False
         
         return True
@@ -120,7 +127,7 @@ class Puzzle:
     def check_if_filled(self) -> bool:
         """Check if the puzzle is filled in its current state."""
 
-        for tile in self.get_tiles():
+        for tile in self.board.get_tiles():
             if not tile.is_filled(): return False
         return True
 
@@ -136,17 +143,17 @@ class Puzzle:
 
     def prune_board(self):
         """Prunes all rows, columns and squares of the board."""
-        for row in self.get_rows():
+        for row in self.board.get_rows():
             self.prune_tiles(row)
-        for column in self.get_columns():
+        for column in self.board.get_columns():
             self.prune_tiles(column)
-        for square in self.get_squares():
+        for square in self.board.get_squares():
             self.prune_tiles(square)
 
 
     def collapse(self):
         """Collapse tiles (fill in if only one value is possible) and identify unsolvability."""
-        for tile in self.get_tiles():
+        for tile in self.board.get_tiles():
             # If the tile is currently unfilled but there is only one possible value for it, assign this value.
             if (not tile.is_filled()) and len(tile.states) == 1:
                 tile.value = tile.states[0]
@@ -156,14 +163,14 @@ class Puzzle:
         """When pruning becomes ineffective, branch the puzzle: choose an unfilled tile and explore all possibilities."""
 
         # Identify a tile to branch from as the first tile with the smallest state space among all unfilled tiles.
-        unfilled_states = [tile.states for tile in self.get_tiles(lambda tile: len(tile.states) > 1)]
+        unfilled_states = [tile.states for tile in self.board.get_tiles(lambda tile: len(tile.states) > 1)]
         min_state_space = min(list(map(lambda space: len(space), unfilled_states)))
-        branch_tile = list(filter(lambda tile: len(tile.states) == min_state_space, self.get_tiles()))[0]
+        branch_tile = list(filter(lambda tile: len(tile.states) == min_state_space, self.board.get_tiles()))[0]
 
         # Attempt to solve the puzzle when the branch tile is collapsed into each of its possible states.
         for state in branch_tile.states:
             new_puzzle = copy.deepcopy(self)
-            new_puzzle.fill_tile(state, branch_tile.position)
+            new_puzzle.board.fill_tile(state, branch_tile.position)
             new_puzzle.solve()
 
             if new_puzzle.check_if_filled() and new_puzzle.check_if_valid():
@@ -202,6 +209,20 @@ def solve_puzzle(name: str, config: list[str]):
     else:
         print(f"Puzzle is unsolvable!\n\n")
 
+def parse_user_config(user_config: str):
+    config = user_config.split(",")
+    valid_chars = ['.',' ','0','1','2','3','4','5','6','7','8','9']
+    if len(config) == 9:
+        valid = True
+        for row in config:
+            if len(row) != 9: 
+                return None
+            for char in row:
+                if not char in valid_chars:
+                    return None
+    return config
+
+    
 
 easy = ("Easy", ["    345  ",
         "  89   3 ",
@@ -243,5 +264,25 @@ evil = ("Evil (requires more branching)", ["  9      ",
         "  7   629",
         "     5   "])
 
-for config in [easy, medium, hard, evil]:
-    solve_puzzle(config[0], config[1])
+if __name__ == "__main__":
+    running = True
+    while running:
+        user_input = input("Would you like to: \n\t[A] Solve your own puzzle.\n\t[B] Solve test puzzles.\n\t[C] Exit program.\n").upper()
+        
+        if user_input in ['A', 'B', 'C']:
+            match(user_input):
+                case 'A':
+                    user_config = input("Enter a puzzle configuration. (Format: rows seperated by commas, denoting empty squares by '.', '0', or ' ')\n")
+                    config = parse_user_config(user_config)
+                    print("\n")
+                    if config == None:
+                        print("Invalid config. Are you sure there are no extra spaces?")
+                    else:
+                        solve_puzzle("Your puzzle", config)
+                case 'B':
+                    for config in [easy, medium, hard, evil]:
+                        solve_puzzle(config[0], config[1])
+                case 'C':
+                    running = False
+        else:
+            print("Invalid option. Choose a letter corresponding to an option.")
