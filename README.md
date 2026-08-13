@@ -1,6 +1,10 @@
 # Sudoku Solver
 This is my implementation of a sudoku puzzle solver, with preset puzzles and custom puzzle solving. Relies on pruning possible board states, and branching when pruning becomes redundant.
 
+<p align="center">
+  <img src="res/solver-gui-v1.png" alt="V1 of the GUI implementation for the solver"/>
+</p>
+
 ## Instructions
 Clone the repository. Only the files `Puzzle.py`, `Solver.py` and `test_puzzles.csv` are necessary. `Test Solvers` are other iterations of `Puzzle.py` that are suboptimal or malfunctional.
 - `Puzzle.py`: classes for the puzzle, its board, and a board tile.
