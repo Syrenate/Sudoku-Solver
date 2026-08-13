@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtCore import Slot, QObject, QEvent, QSize, Qt, QRect
 from enum import Enum; from math import floor
-from solver.Puzzle import Puzzle, Vector2
+from src.Puzzle import Puzzle, Vector2
 
 
 class Orientation(Enum):
@@ -165,7 +165,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication([])
-    with open("src/style.qss", "r") as file:
+    with open("res/style.qss", "r") as file:
         style = file.read()
         app.setStyleSheet(style)
 
