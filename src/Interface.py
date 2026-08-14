@@ -10,9 +10,6 @@ def check_config(user_config: str):
     if len(user_config) != 89 or len(config) != 9: 
         raise ValueError("invalid config (should be 9 blocks of 9 characters, each delimited by a comma).")
 
-    if len(config) % 3 != 0:
-        raise ValueError("invalid row count.")
-
     
     valid_chars = ['.',' ','0'] + list(map(lambda num: str(num), range(1,10)))
 
@@ -34,9 +31,9 @@ def solve_puzzle(name: str, passed_config: list[str]):
     print(f"\nSolving puzzle: {name}. \n{puzzle}\n")
 
     start_time = time.time()
-    puzzle.solve()
+    is_solved = puzzle.solve()
     
-    if puzzle.is_solvable:
+    if is_solved:
         print(f"Puzzle sovled! Time taken: {round((time.time() - start_time) * 1000, 2)}ms. \n{puzzle}\n")
     else:
         print("Puzzle is unsolvable!\n\n")

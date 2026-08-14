@@ -1,5 +1,6 @@
 from copy import deepcopy
 from math import floor
+import time
 
 ### Version 2
 # Main problem with V1 was the absurd lack of attention to readability and a coherent structure. 
@@ -17,7 +18,8 @@ class Puzzle:
             state_changed: bool, tracks if an iteration has changed the board. Used to determine if the board cannot be filled any further (i.e. due to missing information)."""
     
     def __init__(self, config: list[str]):
-        self.board = Board(config)
+        board = Board(config)
+        self.board_stack = BoardStack(board)
 
         # Solvability tracking
         self.is_solved = False     
@@ -25,71 +27,71 @@ class Puzzle:
         self.state_changed = False
 
     def __str__(self): 
-        return str(self.board)
+        return str(self.board())
+
+    def board(self):
+        return self.board_stack.head.board
 
 
     ### Solving Methods
 
-    def solve(self) -> Puzzle:
+    def solve(self) -> bool:
         """Loop to solve the puzzle. Prunes possible states, and branches when the board becomes invariant under pruning.
             Output:
-                Puzzle instance, partially filled if no solution is found."""
-        while (not self.check_if_filled()) and self.is_solvable:
-            self.prune_board() # Reduce state space of all tiles accoring to the rules of Sudoku.
-            self.collapse()    # Fill any tile for which only one possible state remains.
+                bool: whether a solution is found or not."""
 
-            self.is_solvable = self.check_if_valid()
-            if not self.is_solvable: return None
+        while not self.board_stack.is_empty():
+            ## Prune the board until no change occours, in which case the board is either solved, or a guess must be made (and branching ensues).
+            while True:
+                self.state_changed = False
+                self.prune_board()
 
-            # If pruning has become ineffective (no change has occoured), begin a branch.
-            if not self.state_changed:
-                self.branch()
-                return self
+                if not self.is_valid():
+                    self.board_stack.pop()
+                    break
 
-            self.state_changed = False
+                if self.is_filled():
+                    return True
+                
+                if not self.state_changed:
+                    self.branch()
+                
 
-    def collapse(self):
-        """Collapse tiles (fill in if only one value is possible)."""
-        for tile in self.board.get_tiles():
-            # If the tile is currently unfilled but there is only one possible value for it, assign this value.
-            if (not tile.is_filled()) and len(tile.states) == 1:
-                tile.value = tile.states[0]
-                self.state_changed = True
+        return False
+    
 
     def branch(self):
         """When pruning becomes ineffective, branch the puzzle: (wisely) choose an unfilled tile and explore all possibilities."""
 
-        # Identify a tile to branch from as the first tile with the smallest state space among all unfilled tiles.
-        unfilled_states = [tile.states for tile in self.board.get_tiles(lambda tile: len(tile.states) > 1)]
-        min_state_space = min(list(map(lambda space: len(space), unfilled_states)))
-        branch_tile = list(filter(lambda tile: len(tile.states) == min_state_space, self.board.get_tiles()))[0]
+        head = self.board_stack.head
+        possible_branches = []
+        for tile in head.board.get_tiles(lambda tile: not tile.is_filled()):
+            if not tile.position.to_index() in head.branches:
+                possible_branches.append(tile)
 
-        # Attempt to solve the puzzle when the branch tile is collapsed into each of its possible states.
+        if possible_branches == []: 
+            self.board_stack.pop()
+            return None
+
+        min_state_size = min(list(map(lambda tile: len(tile.states), possible_branches)))
+        branch_tile = list(filter(lambda tile: len(tile.states) == min_state_size, possible_branches))[0]
+        head.add_branch(branch_tile.position)
+        print(self.board())
+
         for state in branch_tile.states:
-            new_puzzle = deepcopy(self)
-            new_puzzle.board.fill_tile(state, branch_tile.position)
-            new_puzzle.solve()
-
-            if new_puzzle.check_if_filled() and new_puzzle.check_if_valid():
-                self.board = new_puzzle.board
-                break
+            new_board = deepcopy(head.board)
+            new_board.fill_tile(state, branch_tile.position)
+            print("Before push:", self.board_stack)
+            self.board_stack.push(new_board, branch_tile.position.to_index())
+            print("After push:", self.board_stack, "\n")
 
     ### Pruning Methods
 
     def get_present_values(self, tiles: list[Tile]):
         """Returns a list of the values that appear in (filled) tiles from the passed array."""
-        value_list = list(map(lambda tile: tile.value, tiles))
+        filled_tiles = list(filter(lambda tile: tile.is_filled(), tiles))
+        value_list = list(map(lambda tile: tile.value(), filled_tiles))
         return list(filter(lambda value: value > 0, value_list))
-
-    def valid_tiles(self, tiles: list[Tile]) -> bool:
-        """Indentifies if a given list of tiles has unique values."""
-        present_values = self.get_present_values(tiles)
-
-        # Perform an efficient search to check if the found values are unique. If not, then the tiles are invalid.
-        for i, val in enumerate(present_values):
-            for check_val in present_values[(i+1):]:
-                if val == check_val: return False
-        return True
 
     def prune_tiles(self, tiles: list[Tile]):
         """Reduce state space of tiles based what values appear in the passed list of tiles."""
@@ -102,23 +104,46 @@ class Puzzle:
                     try: tile.states.remove(apparent_value)
                     except: pass
 
+                if tile.is_filled():
+                    self.state_changed = True
+                elif len(tile.states) == 0:
+                    return False
+        return True
+
     def prune_board(self):
         """Prunes all rows, columns and squares of the board, reducing the state space of all present tiles depending on the values that appear in that list."""
-        for tile_region in self.board.get_sudoku_regions():
-            self.prune_tiles(tile_region)
+        for tile_region in self.board().get_sudoku_regions():
+            valid_region = self.prune_tiles(tile_region)
+            if not valid_region: return False
+        return True
 
 
     ### Validity Checking Methods
         
-    def check_if_filled(self) -> bool:
-        """Check if the puzzle is filled in its current state."""
-        for tile in self.board.get_tiles():
+    def is_filled(self) -> bool:
+        """Check if all tiles have collapsed to a single value."""
+        for tile in self.board().get_tiles():
             if not tile.is_filled(): return False
         return True
     
-    def check_if_valid(self) -> bool:
-        """Identifies if the current board configuration is valid accoring to the rules of Sudoku. If not, the most recent branch was unsucessful."""
-        for tile_region in self.board.get_sudoku_regions():
+
+    def valid_tiles(self, tiles: list[Tile]) -> bool:
+        """Indentifies if a given list of tiles has unique values."""
+
+        # Check that all tiles have at least one possible state.
+        for tile in tiles:
+            if len(tile.states) == 0: return False
+
+        # Perform an efficient search to check if the found values are unique. If not, then the tiles are invalid.
+        present_values = self.get_present_values(tiles)
+        for i, val in enumerate(present_values):
+            for check_val in present_values[(i+1):]:
+                if val == check_val: return False
+        return True
+    
+    def is_valid(self) -> bool:
+        """Identifies if the stack head is valid accoring to the rules of Sudoku. If not, the stack head is unsolvable."""
+        for tile_region in self.board().get_sudoku_regions():
             if not self.valid_tiles(tile_region): return False
         
         return True
@@ -129,7 +154,68 @@ class Puzzle:
         """Return the current instance of Puzzle to an empty state (an empty Board instance)."""
         size = self.board.size
         empty_config = ['0' * size.x] * size.y
-        self.board = Board(empty_config)
+
+        board = Board(empty_config)
+        self.board_stack = BoardStack(board)
+
+
+class BoardNode:
+    def __init__(self, board: Board = None, branch_from: int = -1):
+        self.branch_from = branch_from
+        self.board = board
+        self.next = None
+
+        self.branches = []
+
+    def __str__(self):
+        output = f"({self.branch_from})"
+        if self.branches == []:
+            output += "None"
+        else: output += str(self.branches)
+        return output 
+
+    def add_branch(self, pos: Vector2):
+        """Record an explored branch so that it isn't explored again."""
+        position_index = pos.to_index()
+        self.branches.append(position_index)
+
+    def has_branched(self, pos: Vector2):
+        """Examine if a branch has been explored at the given position."""
+        position_index = pos.to_index()
+        return position_index in self.branches
+
+class BoardStack:
+    def __init__(self, board: Board = None):
+        self.head = BoardNode(board)
+        self.size = 0 if board == None else 1
+
+    def __str__(self):
+        output = "" 
+        current = self.head
+        output += str(current)+ ", "
+        while current.next != None:
+            current = current.next
+            output += str(current)+ ", "
+        return output
+
+    def pop(self):
+        if self.head == None:
+            raise ValueError("Stack is empty!")
+
+        stack_head = self.head
+        self.head = stack_head.next
+        self.size -= 1
+
+        return stack_head.board
+
+    def push(self, board: Board, branch_from: int):
+        board_node = BoardNode(board, branch_from)
+        board_node.next = self.head
+        self.head = board_node
+        self.size += 1
+
+    def is_empty(self):
+        return self.size == 0
 
 
 ##  Board Structure Classes
@@ -144,6 +230,10 @@ class Vector2:
     def __str__(self): return f"({self.x}, {self.y})"
     def ZERO(): return Vector2(0, 0)
 
+    def to_index(self):
+        """Returns a unique integer corresponding to a position on the Sudoku board."""
+        return self.y + 9 * self.x
+
 class Tile:
     """Class representing a board piece. \n
         Input:
@@ -154,18 +244,21 @@ class Tile:
             states: array of possible values the tile may have. initially all values if the tile is not already filled."""
     def __init__(self, value: str, pos: Vector2, board_size: Vector2):
         if value in ['.', '0', ' ']:
-            self.value = 0
             self.states = list(range(1, 1 + max(board_size.x, board_size.y)))
         else:
-            self.value = int(value)
-            self.states = [self.value]
+            self.states = [int(value)]
         self.position = pos
 
     def __str__(self): 
-        return str(self.value) if self.is_filled() else '.'
+        return str(self.value()) if self.is_filled() else '.' if len(self.states) > 1 else '!'
 
     def is_filled(self) -> bool: 
-        return self.value != 0
+        return len(self.states) == 1
+    
+    def value(self) -> int:
+        if not self.is_filled():
+            raise ValueError("Unfilled tile!")
+        else: return self.states[0]
 
 class Board:
     """Board stores a given board configuration by a 2 dimensional array of Tiles, containing methods to extract data from the board. \n
@@ -205,6 +298,28 @@ class Board:
     def fill_tile(self, value: int, pos: Vector2):
         """Replace a tile at a specified position with a specified value."""
         self.board_state[pos.y][pos.x] = Tile(value, pos, self.size)
+    
+    def is_valid(self) -> bool:
+        """Identifies if the current board configuration is valid accoring to the rules of Sudoku. If not, it is unsolvable."""
+        for tile_region in self.get_sudoku_regions():
+            if not self.valid_tiles(tile_region): return False
+        
+        return True
+
+    def valid_tiles(self, tiles: list[Tile]) -> bool:
+        """Indentifies if a given list of tiles has unique values."""
+        present_values = self.get_present_values(tiles)
+
+        # Perform an efficient search to check if the found values are unique. If not, then the tiles are invalid.
+        for i, val in enumerate(present_values):
+            for check_val in present_values[(i+1):]:
+                if val == check_val: return False
+        return True
+
+    def get_present_values(self, tiles: list[Tile]):
+        """Returns a list of the values that appear in (filled) tiles from the passed array."""
+        filled_tiles = list(filter(lambda tile: tile.is_filled(), tiles))
+        return list(map(lambda tile: tile.value(), filled_tiles))
     
 
     ### Board Searching Methods
