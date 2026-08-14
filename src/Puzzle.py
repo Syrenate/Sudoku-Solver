@@ -55,6 +55,8 @@ class Puzzle:
                 
                 if not self.state_changed:
                     self.branch()
+
+                print(self.board(), "\n\n")
                 
 
         return False
@@ -63,27 +65,23 @@ class Puzzle:
     def branch(self):
         """When pruning becomes ineffective, branch the puzzle: (wisely) choose an unfilled tile and explore all possibilities."""
 
-        head = self.board_stack.head
-        possible_branches = []
-        for tile in head.board.get_tiles(lambda tile: not tile.is_filled()):
-            if not tile.position.to_index() in head.branches:
-                possible_branches.append(tile)
+        branch_tile = None
+        for tile in self.board().get_tiles():
+            if not tile.is_filled() and not tile.position.to_index() in self.board_stack.head.branches:
+                branch_tile = tile
+                break
 
-        if possible_branches == []: 
+        if branch_tile == None:
             self.board_stack.pop()
             return None
 
-        min_state_size = min(list(map(lambda tile: len(tile.states), possible_branches)))
-        branch_tile = list(filter(lambda tile: len(tile.states) == min_state_size, possible_branches))[0]
-        head.add_branch(branch_tile.position)
-        print(self.board())
+        self.board_stack.head.add_branch(branch_tile.position)
 
         for state in branch_tile.states:
-            new_board = deepcopy(head.board)
+            new_board = deepcopy(self.board())
             new_board.fill_tile(state, branch_tile.position)
-            print("Before push:", self.board_stack)
+
             self.board_stack.push(new_board, branch_tile.position.to_index())
-            print("After push:", self.board_stack, "\n")
 
     ### Pruning Methods
 
