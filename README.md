@@ -1,15 +1,13 @@
 # Sudoku Solver
 This is my implementation of a sudoku puzzle solver, with preset puzzles and custom puzzle solving. Relies on pruning possible board states, and branching when pruning becomes redundant.
 
+<p align="center">
+  <img src="res/solver-gui-v1.png" alt="V1 of the GUI implementation for the solver"/>
+</p>
+
 ## Instructions
-Clone the repository. Only the files `Puzzle.py`, `Solver.py` and `test_puzzles.csv` are necessary. `Test Solvers` are other iterations of `Puzzle.py` that are suboptimal or malfunctional.
-- `Puzzle.py`: classes for the puzzle, its board, and a board tile.
-- `Interface.py`: user interface methods. **Run this to interact with the solver.**
-- `test_puzzles.csv`: some sample puzzles. Feel free to add more, using the following syntax:
-  
-      [puzzle name]|[row 1],[row 2],...,[row n]
-  where each row is a string comprised of numbers (filled tiles) and either `0`, `.` or a space (empty tiles).
+Run `__main__.py` in the terminal, it will open in a seperate window. Click to select a tile, enter a number to change the value, and press backspace to remove a value. Then press solve!
 
 ## TODO:
-- Implement a GUI for puzzle creation and visualisation.
-- Optimise board searching and reduce redundant searches.
+- Add an actual functioning GUI lol.
+- Optimise board searching (i.e reduce redundant searches with human-derived algorithms).
