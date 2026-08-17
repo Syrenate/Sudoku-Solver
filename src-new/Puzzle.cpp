@@ -138,11 +138,9 @@ public:
     }
     bool solve(){
         while (!isSolved() && state_changed) {
-            std::cout << this->board_state[0][8].showStates() << std::endl;
-
             state_changed = false;
             prune();
-            show();
+            std::cout << "Progress: " << collapsed_tiles << "/81" << std::endl;
         }
 
         if (isSolved()) { return true; }
@@ -244,53 +242,29 @@ private:
     }
 };
 
-class Puzzle{
-public:
-    Puzzle(Board board) {
-        board_stack.push(board);
-    }
-    Puzzle(std::string config) {
-        Board board { config };
-        board_stack.push(board);
-    }
 
-    void show() {
-        board_stack.top().show();
-    }
+Board solve(Board board) {
+    std::stack<Board> board_stack;
+    board_stack.push(board);
 
-    bool solve() {
-        Board* board = &board_stack.top();
-        //board.show();
-        std::cout << std::endl;
-        board -> solve();
-        //board.show();
-        return true;
+    while (!board_stack.empty()) {
+        Board head_board = board_stack.top();
+        bool got_solved = head_board.solve();
 
-        while (!board_stack.empty()) {
-            Board board = board_stack.top();
-            bool got_solved = board.solve();
-            board.show();
+        if (got_solved) { return head_board; }
 
-            if (got_solved) { return true; }
-            return false;
-
-
-            std::vector<Board> branches = board.branch();
-            if (branches.empty()) {
-                board_stack.pop();
-            } else {
-                for (Board branch : branches) {
-                    board_stack.push(branch);
-                }
+        std::vector<Board> branches = head_board.branch();
+        if (branches.empty()) {
+            board_stack.pop();
+        } else {
+            for (Board branch : branches) {
+                board_stack.push(branch);
             }
         }
-
-        return false;
     }
 
-private:
-    std::stack<Board> board_stack;
-};
+    return board;
+}
 
 
 int main() {
@@ -299,25 +273,21 @@ int main() {
     //Board hard   { "9 3  42  ,4 65     ,  28     ,     5  4, 67 4 92 ,1  9     ,     87  ,     94 3,  83  6 1" };
     //Board evil   { "  9      ,384   5  ,    4 3  ,   1  27 ,2  3 4  5, 48  6   ,  6 1    ,  7   629,     5   " };
 
-    
-    std::stack<Board> board_stack;
-    board_stack.push(easy);
-    board_stack.top().show();
-    board_stack.top().solve();
-    std::cout << std::endl;
-    board_stack.top().show();
+    // This doesnt work!!!!!!!!
+    Board solved = solve(easy);
 
-    return true;
-
-
-    Puzzle puzzle { easy };
-    bool is_solved = puzzle.solve();
-    std::cout << std::endl;
-
-    if (is_solved) {
-        puzzle.show();
+    if (solved.isSolved()) {
+        solved.show();
     } else {
         std::cout << "Puzzle is unsolvable!";
     }
+    std::cout << "\n\n";
+
+
+    // THIS does though!
+    easy.solve();
+    easy.show();
+
+
     return 0;
 }
