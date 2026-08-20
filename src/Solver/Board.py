@@ -12,15 +12,22 @@ class Board:
         for row_index, line in enumerate(config):
             tile_line = []
             for column_index, value in enumerate(line): 
-                tile = Tile(row_index, column_index, value)
-
-                if tile.isCollapsed(): 
-                    self.collapsed_tiles += 1
-                    self.pruneRegions(tile)
-
+                tile = self.createTile(row_index, column_index, value)
                 tile_line.append(tile)
             self.tiles.append(tile_line)
 
+    def createTile(self, row: int, column: int, value: str):
+        tile = Tile(row, column, value)
+        
+        if tile.isCollapsed(): 
+            self.collapsed_tiles += 1
+            self.pruneRegions(tile)
+
+        return tile
+
+    def empty(): 
+        empty_config = ["........." for i in range(9)]
+        return Board(empty_config)
 
     def __str__(self): 
         output = ""
@@ -41,6 +48,10 @@ class Board:
 
     ## Solution Methods    
 
+    def isDuplicate(self, value: int, tile: Tile):
+        return (self.rows[tile.row].contains(value) or self.columns[tile.column].contains(value) \
+                                                    or self.squares[tile.square].contains(value) )
+
     def pruneRegions(self, tile: Tile):
         if tile.isCollapsed():
             tile_value = tile.getValue()
@@ -48,10 +59,6 @@ class Board:
             self.rows[tile.row].addValue(tile_value)
             self.columns[tile.column].addValue(tile_value)
             self.squares[tile.square].addValue(tile_value)
-
-    def isDuplicate(self, value: int, tile: Tile):
-        return (self.rows[tile.row].contains(value) or self.columns[tile.column].contains(value) \
-                                                    or self.squares[tile.square].contains(value) )
 
     def pruneTile(self, tile: Tile, value: int) -> bool:
         did_state_change = False
@@ -78,9 +85,10 @@ class Board:
             for col_index in range(9):
                 tile = self.tiles[row_index][col_index]
 
-                for value in range(9):
-                    state_changed = self.pruneTile(tile, value)
-                    if state_changed: did_state_change = True
+                if not tile.isCollapsed():
+                    for value in range(9):
+                        state_changed = self.pruneTile(tile, value)
+                        if state_changed: did_state_change = True
 
         return did_state_change
 
@@ -117,6 +125,19 @@ class Board:
         
         return self.branchFrom(branch_tile)
 
+    def branchFrom(self, tile: Tile) -> list[Board]:
+        branches: list[Board] = []
+
+        for value in range(1,10): 
+            if tile.couldBe(value): 
+                new_tile = Tile(tile.row, tile.column, value)
+
+                new_config = self.generateNewConfig(new_tile)
+                new_board = Board(new_config)
+                branches.append(new_board)
+
+        return branches
+
     def generateNewConfig(self, new_tile: Tile):
         new_config = []
         for row_index in range(9):
@@ -131,16 +152,3 @@ class Board:
             new_config.append(row)
             
         return new_config
-
-    def branchFrom(self, tile: Tile) -> list[Board]:
-        branches: list[Board] = []
-
-        for value in range(1,10): 
-            if tile.couldBe(value): 
-                new_tile = Tile(tile.row, tile.column, value)
-
-                new_config = self.generateNewConfig(new_tile)
-                new_board = Board(new_config)
-                branches.append(new_board)
-
-        return branches
