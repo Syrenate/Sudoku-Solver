@@ -1,6 +1,9 @@
 from math import floor
 
 class Region:
+    ## Region stores the state of a row, column or square in the Sudoku board.
+    ## Outside of Tile and Region, all values are considered 1-9 to correlate with a traditional Sudoku puzzle.
+
     def __init__(self):
         self.values = [False for i in range(9)]
 

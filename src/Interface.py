@@ -37,20 +37,16 @@ def solvePuzzle(name: str, board: Board):
 
 
 if __name__ == "__main__":
-    board = Board.getRandomPuzzle(10)
+    try:
+        with open("src/test_puzzles.csv", newline="\n") as file:
+            reader = csv.reader(file, delimiter='|')
 
+            for file_config in reader: 
+                board = Board(file_config[1].split(","))
+                solvePuzzle(file_config[0], board)
 
-    if False:
-        try:
-            with open("src/test_puzzles.csv", newline="\n") as file:
-                reader = csv.reader(file, delimiter='|')
+    except ValueError as e:
+        print(f"Invalid config. Reason: {e}\n")
 
-                for file_config in reader: 
-                    board = Board(file_config[1].split(","))
-                    solvePuzzle(file_config[0], board)
-
-        except ValueError as e:
-            print(f"Invalid config. Reason: {e}\n")
-
-        except OSError as e: 
-            print(f"{e} (Is 'test_puzzles.csv' present and permissable in the current directory?)")
+    except OSError as e: 
+        print(f"{e} (Is 'test_puzzles.csv' present and permissable in the current directory?)")

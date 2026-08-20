@@ -9,13 +9,6 @@ from random import randrange
 
 
 class Board:
-    """Board stores a given board configuration by a 2 dimensional array of Tiles, containing methods to extract data from the board. \n
-        Input: 
-            config: array of strings, representing an array of the lines present in the passed configuration.
-        Properties:
-            board_state: list of list of tiles, representing the list of rows of tiles on the board.
-            size: Vector2, stores the dimensions of the board.
-            square_count: Vector2, stores the number of squares on the board."""
     def __init__(self, config: list[str]):
         self.tiles: list[list[Tile]] = []
         self.collapsed_tiles = 0
@@ -42,15 +35,15 @@ class Board:
     def __str__(self): 
         output = ""
 
-        for j in range(9):
+        for row in range(9):
             line = ""
-            for i in range(9):
-                value = str(self.tiles[j][i])
-                column_divider = " | " if (i+1) % 3 == 0 and i != 8 else " "
+            for column in range(9):
+                value = str(self.tiles[row][column])
+                column_divider = " | " if (column+1) % 3 == 0 and column != 8 else " "
                 line += (value if value != '0' else '.') + column_divider
 
-            line_break = '\n' if j != 8 else ''
-            row_divider = ('-' * 21) + '\n' if (j+1) % 3 == 0 and j != 8 else ''
+            line_break = '\n' if row != 8 else ''
+            row_divider = ('-' * 21) + '\n' if (row+1) % 3 == 0 and row != 8 else ''
 
             output += line + line_break + row_divider
         return output 
