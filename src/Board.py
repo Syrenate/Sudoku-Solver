@@ -29,8 +29,6 @@ class Board:
                 tile_line.append(tile)
             self.tiles.append(tile_line)
 
-        self.pruneBoard()
-
 
     def __str__(self): 
         output = ""
@@ -48,7 +46,8 @@ class Board:
             output += line + line_break + row_divider
         return output 
 
-    
+
+    ## Solution Methods    
 
     def pruneRegions(self, tile: Tile):
         if tile.isCollapsed():
@@ -107,27 +106,49 @@ class Board:
         return False
 
 
+
+    ## Branching Methods
+
     def branch(self) -> list[Board]:
+        possible_branches : list[Tile] = []
         for row_index in range(9):
             for col_index in range(9):
                 tile = self.tiles[row_index][col_index]
 
                 if not tile.isCollapsed():
-                    return self.branchFrom(tile)
-        return []
+                    possible_branches.append(tile)
+
+        if possible_branches == []: return []
+        
+        minimum_state_space = min(list(map(lambda tile: tile.possible_values, possible_branches)))
+        branch_tile = list(filter(lambda tile: tile.possible_values == minimum_state_space, possible_branches))[0]
+        
+        return self.branchFrom(branch_tile)
+
+    def generateNewConfig(self, new_tile: Tile):
+        new_config = []
+        for row_index in range(9):
+            row = ""
+            for col_index in range(9):
+                tile = self.tiles[row_index][col_index]
+
+                if tile.isCollapsed() or (row_index == new_tile.row and col_index == new_tile.column):
+                    row += str(tile.getValue() if tile.isCollapsed() else new_tile.getValue())
+                else: row += "."
+
+            new_config.append(row)
+            
+        return new_config
 
     def branchFrom(self, tile: Tile) -> list[Board]:
         branches: list[Board] = []
 
         for value in range(1,10): 
             if tile.couldBe(value): 
-                new_board = deepcopy(self)
                 new_tile = Tile(tile.row, tile.column, value)
 
-                new_board.collapsed_tiles += 1
-                new_board.tiles[new_tile.row][new_tile.column] = new_tile
-                new_board.pruneRegions(new_tile)
-
+                new_config = self.generateNewConfig(new_tile)
+                new_board = Board(new_config)
                 branches.append(new_board)
 
         return branches

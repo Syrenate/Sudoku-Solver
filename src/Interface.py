@@ -19,7 +19,6 @@ def solveBoard(board: Board):
             for branch in branches:
                 board_stack.append(branch)
         
-
     return None
 
 
@@ -37,16 +36,16 @@ def solvePuzzle(name: str, board: Board):
 
 
 if __name__ == "__main__":
-    try:
-        with open("src/test_puzzles.csv", newline="\n") as file:
-            reader = csv.reader(file, delimiter='|')
+        try:
+            with open("src/test_puzzles.csv", newline="\n") as file:
+                reader = csv.reader(file, delimiter='|')
 
-            for file_config in reader: 
-                board = Board(file_config[1].split(","))
-                solvePuzzle(file_config[0], board)
+                for file_config in reader:  # file_config in [["evil", "123456789,         ,         ,         ,         ,         ,         ,         ,987654321"]]:#
+                    board = Board(file_config[1].split(","))
+                    solvePuzzle(file_config[0], board)
 
-    except ValueError as e:
-        print(f"Invalid config. Reason: {e}\n")
+        except ValueError as e:
+            print(f"Invalid config. Reason: {e}\n")
 
-    except OSError as e: 
-        print(f"{e} (Is 'test_puzzles.csv' present and permissable in the current directory?)")
+        except OSError as e: 
+            print(f"{e} (Is 'test_puzzles.csv' present and permissable in the current directory?)")
