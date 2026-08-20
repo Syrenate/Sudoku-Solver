@@ -1,5 +1,5 @@
 import time, csv
-from Puzzle import Puzzle
+from NewerPuzzle import Puzzle
 
 # TO BE DONE: Random puzzle generator, GUI to interact with the puzzle.
 
@@ -31,7 +31,8 @@ def solve_puzzle(name: str, passed_config: list[str]):
     print(f"\nSolving puzzle: {name}. \n{puzzle}\n")
 
     start_time = time.time()
-    is_solved = puzzle.solve()
+    puzzle.solve()
+    is_solved = puzzle.is_solved
     
     if is_solved:
         print(f"Puzzle sovled! Time taken: {round((time.time() - start_time) * 1000, 2)}ms. \n{puzzle}\n")
@@ -45,9 +46,9 @@ def solve_puzzle(name: str, passed_config: list[str]):
 if __name__ == "__main__":
     running = True
     while running:
-        user_input = input("Would you like to: \n\t[A] Solve your own puzzle.\n\t[B] Solve test puzzles.\n\t[C] Exit program.\n").upper()
+        user_input = 'b'#input("Would you like to: \n\t[A] Solve your own puzzle.\n\t[B] Solve test puzzles.\n\t[C] Exit program.\n").upper()
         
-        match(user_input):
+        match(user_input.upper()):
             case 'A':
                 ask_for_config = True
                 
@@ -65,10 +66,13 @@ if __name__ == "__main__":
 
             case 'B':
                 try:
-                    with open("src/test_puzzles.csv", newline="\n") as file:
+                    with open("test_puzzles.csv", newline="\n") as file:
                         reader = csv.reader(file, delimiter='|')
+                        count = 0
                         for file_config in reader: 
-                            solve_puzzle(file_config[0], file_config[1])
+                            if count < 1:
+                                solve_puzzle(file_config[0], file_config[1])
+                            count += 1
                 except ValueError as e:
                     print(f"Invalid config. Reason: {e}\n")
                 except OSError as e: 
@@ -79,3 +83,5 @@ if __name__ == "__main__":
 
             case _:
                 print("Invalid option. Choose a letter corresponding to an option.\n")
+
+        running = False
