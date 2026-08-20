@@ -7,26 +7,29 @@ from PySide6.QtWidgets import (
     QGridLayout, 
     QMenuBar, 
     QMenu,
-    QFrame
+    QFrame,
+    QVBoxLayout
 )
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtCore import Slot, QObject, QEvent, QSize, Qt, QRect
-from enum import Enum; from math import floor
-from src.Puzzle import Puzzle, Vector2
 
+from enum import Enum
+from math import floor; 
+import random, sys
+
+from src.Solver import Board, Tile, solveBoard
+
+
+class Vector2:
+    def __init__(self, x:int, y:int):
+        self.x = x
+        self.y = y
 
 class Orientation(Enum):
     VERTICAL = 0
     HORIZONTAL = 1
     INTERSECTION = 2
 
-class Divider(QLabel):
-    def __init__(self, orient: Orientation):
-        super().__init__(self)
-
-        text = ""
-        if orient == Orientation.VERTICAL:
-            self.text = "|"
 
 class BoardTile(QPushButton):
     def __init__(self, board: PuzzleBoard, x: int, y: int, init_label: str = " "):
@@ -80,7 +83,8 @@ class PuzzleBoard(QWidget):
         widget_item = widget_square.itemAtPosition(pos.y % 3, pos.x % 3)
 
         widget_item.widget().setText(str(value))
-        self.parent.puzzle.board.fill_tile(value, pos)
+        new_config = self.parent.board.generateNewConfig(Tile(pos.y, pos.x, value))
+        self.parent.board = Board(new_config)
 
 
     def keyPressEvent(self, event):
@@ -111,7 +115,7 @@ class PuzzleInterface(QWidget):
         layout.addWidget(clear_button, 0, 0)
 
         solve_button = QPushButton("Solve")
-        solve_button.clicked.connect(parent.SolvePuzzle)
+        solve_button.clicked.connect(parent.SolveBoard)
         layout.addWidget(solve_button, 0, 1)
 
         self.setLayout(layout)
@@ -133,33 +137,35 @@ class MainWindow(QMainWindow):
         #self.layout.addWidget(title, 1, 0, alignment=Qt.AlignmentFlag.AlignJustify)
 
 
-        self.puzzle = Puzzle("  9      ,384   5  ,    4 3  ,   1  27 ,2  3 4  5, 48  6   ,  6 1    ,  7   629,     5   ".split(","))
-        self.puzzle_board = PuzzleBoard(parent=self);         self.layout.addWidget(self.puzzle_board, 2, 0,
-                                                                                    alignment=Qt.AlignmentFlag.AlignJustify)
-        self.puzzle_interface = PuzzleInterface(parent=self); self.layout.addWidget(self.puzzle_interface, 3, 0,
-                                                                                    alignment=Qt.AlignmentFlag.AlignJustify)
+        self.board = Board("  9      ,384   5  ,    4 3  ,   1  27 ,2  3 4  5, 48  6   ,  6 1    ,  7   629,     5   ".split(","))
+        self.puzzle_board = PuzzleBoard(parent=self);         
+        self.layout.addWidget(self.puzzle_board, 2, 0, alignment=Qt.AlignmentFlag.AlignJustify)
+        self.puzzle_interface = PuzzleInterface(parent=self); 
+        self.layout.addWidget(self.puzzle_interface, 3, 0, alignment=Qt.AlignmentFlag.AlignJustify)
         
-        self.LoadPuzzle()
+        self.LoadBoard()
         holding_widget = QWidget()
         holding_widget.setLayout(self.layout)
         self.setCentralWidget(holding_widget)
         
 
-    def LoadPuzzle(self):
-        board = self.puzzle.board.board_state
-        for y, row in enumerate(board):
+    def LoadBoard(self):
+        for y, row in enumerate(self.board.tiles):
             for x, tile in enumerate(row):
-                print(f"({y},{x}): {tile.value}")
-                tile_val = ' ' if tile.value == 0 else tile.value
-                self.puzzle_board.set_tile(Vector2(x,y), str(tile_val))
+                tile_value = tile.getValue()
+                print(f"({y},{x}): {tile_value}")
 
-    def SolvePuzzle(self):
-        self.puzzle.solve()
-        self.LoadPuzzle()
+                tile_val = ' ' if tile_value == 0 else str(tile_value)
+                self.puzzle_board.set_tile(Vector2(x,y), tile_val)
+
+    def SolveBoard(self):
+        solution = solveBoard(self.board)
+        if solution != None: self.board = solution
+        self.LoadBoard()
 
     def ClearBoard(self):
-        self.puzzle.clear_board()
-        self.LoadPuzzle()
+        self.board = Board.empty()
+        self.LoadBoard()
 
 
 

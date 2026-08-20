@@ -1,0 +1,6 @@
+QPushButton {
+    font-size: 20px
+}
+
+QLabel#Title { font-size: 40px }
+QLabel#Description { font-size: 15px }
