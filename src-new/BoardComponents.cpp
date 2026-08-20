@@ -5,6 +5,165 @@
 #include <iostream>
 #include "BoardComponents.h"
 
+
+
+class Board {
+public:
+    Board(std::string config) {
+        this->config = config;
+        collapsed_tiles = 0;
+        state_changed = true;
+
+        int row_index = 0;
+        std::string line;
+        std::stringstream config_stream(config);
+
+        char empty_chars[3] = {'.', '0', ' '};
+        while (std::getline(config_stream, line, ',')) {
+            for (int column_index=0; column_index<9; column_index++) {
+                Vector2 pos(row_index, column_index);
+
+                char char_value = line[column_index];
+                bool is_empty = (std::find(std::begin(empty_chars), std::end(empty_chars), char_value) != std::end(empty_chars));
+
+                if (is_empty) { board_state[row_index][column_index] = Tile(pos); }        
+                else { 
+                    int value = char_value - '0';
+                    board_state[row_index][column_index] = Tile(pos, value); 
+                    addCollapsedValue(pos, value);
+                }
+            }
+            row_index++;
+        }
+    }
+    Board() = default;
+
+    void show() {
+        for (int row=0; row<9; row++) {
+            for (int col=0; col<9; col++) {
+                int value = this->board_state[row][col].value;
+                std::cout << ((value == 0) ? "." : std::to_string(value));
+            }
+            std::cout << "\n";
+        }
+    }
+    bool solve(){
+        bool state_changed = true;
+        while (!isSolved() && state_changed) {
+            state_changed = prune();
+            std::cout << collapsed_tiles << "/81\n";
+        }
+
+        if (isSolved()) { return true; }
+        else { return false; }
+    }
+    bool isSolved(){
+        return collapsed_tiles == 81;
+    }
+
+    std::vector<Board> branch(){
+        auto attempts_start = std::begin(branch_attempts);
+        auto attempts_end = std::end(branch_attempts);
+
+        for (int row=0; row<9; row++) {
+            for (int col=0; col<9; col++) {
+                Tile tile = this->board_state[row][col];
+                int index = tile.position.to_board_index();
+
+                auto search = std::find(attempts_start, attempts_end, index);
+                bool new_branch = (search == attempts_end);
+
+                if (!tile.isCollapsed() && new_branch) {
+                    std::vector<Board> new_boards = {};
+                    for (int state : tile.getPossibleStates()) {
+                        Board new_board = create_branch(tile.position, state);
+                        new_boards.push_back(new_board);
+                    }
+                    return new_boards;
+                }
+            }
+        }
+
+        return { };
+    }
+
+
+private:
+    Tile board_state[9][9];
+    std::string config;
+
+    std::vector<int> branch_attempts;
+    int collapsed_tiles;
+
+
+    std::vector<int> rows[9];
+    std::vector<int> columns[9];
+    std::vector<int> squares[9];
+    
+    void addCollapsedValue(Vector2 pos, int value) {
+        rows[pos.row].push_back(value);
+        columns[pos.column].push_back(value);
+        squares[pos.toSquareIndex()].push_back(value);
+        collapsed_tiles++; 
+    }
+
+    bool pruneTiles(Tile* tiles[9]){
+        std::vector<int> present_values;
+        for (int i=0; i < 9; i++) { 
+            int value = tiles[i] -> value;
+            if (value > 0) {
+                present_values.push_back(value);
+            } 
+        }
+
+        bool state_changed = false;
+        for (int i=0; i<9; i++) {
+            if (!tiles[i] -> isCollapsed()) {
+                for (int value : present_values) {
+                    bool did_collapse = tiles[i] -> collapseState(value);
+
+                    if (did_collapse) {
+                        collapsed_tiles++;
+                        state_changed = true;
+                    }
+                }
+            }
+        }
+
+        return state_changed;
+    }
+
+    void prune() {
+        for (int row_index = 0; row_index < 9; row_index++) {
+            for (int column_index = 0; column_index < 9; column_index++) {
+                int value = board_state[row_index][column_index].value;
+                Vector2 pos {row_index, column_index};
+
+                if (value > 0) {
+                    for (std::vector<int> present_values : { rows[pos.row], columns[pos.column], squares[pos.toSquareIndex()] }) {
+
+                    }
+                }
+            }
+        }
+        
+        for (int row_index = 0; row_index < 9; row_index++) {
+            for (int column_index = 0; column_index < 9; column_index++) {
+                Tile tile = board_state[row_index][column_index];
+
+                if (!tile.isCollapsed()) {}
+            }
+        }
+
+    }
+
+    Board create_branch(Vector2 pos, int state) {
+        Board new_board { config };
+        new_board.board_state[pos.row][pos.column] = Tile(pos, state);
+        return new_board;
+    }
+};
+
 Board::Board(std::string config) {
     collapsed_tiles = 0;
     state_changed = true;

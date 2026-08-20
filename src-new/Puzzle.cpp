@@ -5,242 +5,226 @@
 #include <iostream>
 #include <stack>
 
+#include <chrono>
+#include <thread>
+
 //#include "BoardComponents.h"
 //#include "BoardComponents.cpp"
 
-struct Vector2{
+struct Vector2 {
     int row;
     int column;
 
     Vector2(int r, int c) {
         row = r; column = c;
     }
-    Vector2() = default;
+    Vector2() { row = -1; column = -1; };
 
     std::string show(){ 
-        std::string output;
+        std::string output = "(";
         std::stringstream ss;
 
         ss << row;
         ss >> output;
 
+        output += ", ";
+
         ss << column;
         ss >> output;
 
-        return output;
+        return output + ")";
     }
 
-    int to_index() {
-        // Unique position index on the sudoku board.
+    int to_board_index() {
         return row + 9 * column;
+    }
+
+    int toSquareIndex() {
+        return 3 * floor(row / 3) + floor(column / 3);
     }
 };
 
-class Tile{
+class Tile {
 public:
     Vector2 position;
     int value;
 
     Tile(Vector2 position, int value) {
         this->position = position;
-        this->possible_states = 1;
-        for (int i = 0; i < 9; i++) {
-            this->states[i] = (i+1 == value);
-        }
         this->value = value;
+
+        possible_states = 1;
+        for (int i = 0; i < 9; i++) {
+            state_space[i] = (i == value);
+        }
     }
     Tile(Vector2 position) {
         this->position = position;
-        this->possible_states = 9;
+
+        value = -1;
+        possible_states = 9;
         for (int i = 0; i < 9; i++) {
-            this->states[i] = true;
+            state_space[i] = true;
         }
-        this->value = 0;
     }
     Tile() = default;
 
-    bool isCollapsed() { return (value > 0); }
-    bool collapseState(int state) {
-        // Reduce the state space of the tile by a value between 1-9.
-        if (states[state-1]) {
-            states[state-1] = false;
-            possible_states--;
+    bool isCollapsed() { 
+        return (possible_states == 1); 
+    }
 
-            if (possible_states == 1) {
-                for (int i = 0; i < 9; i++) {
-                    if (states[i] == true) { value = i+1; }
-                }
+    bool couldBe(int possible_state) {
+        return state_space[possible_state];
+    }
+
+    bool collapseState(int state) {
+        if (!couldBe(state) || isCollapsed()) { return false; }
+        
+        state_space[state] = false;
+        possible_states--;
+
+        if (!isCollapsed()) { return false; } 
+
+        for (int i = 0; i < 9; i++) {
+            if (state_space[i]) { 
+                value = i; 
                 return true;
             }
-        } 
+        }
+
         return false;
     }
 
-    std::vector<int> get_possible_states() {
-        std::vector<int> p_states;
-        for (int i=0; i<9; i++) {
-            if (states[i]) {
-                p_states.push_back(i+1);
-            }
-        }
-        return p_states;
-    }
-
     std::string showStates() {
-        std::string output;
+        std::string output = "(" + std::to_string(position.row) + ", " + std::to_string(position.column) + "): ";
         for (int i=0; i<9; i++) {
-            output += "(" + std::to_string(i+1) + ": " + std::to_string(states[i]) + ")";
+            output += "(" + std::to_string(i+1) + ": " + std::to_string(state_space[i]) + ")";
         }
-        return output;
+        return output + "\n";
     }
 
 private:
-    bool states[9];
-    int possible_states;
+    bool state_space[9];   // The possible states of this tile (state_space[n] == tile might be n+1)
+    int possible_states; 
 };
 
-class Board{
+class Board {
 public:
     Board(std::string config) {
-        this->config = config;
+        initial_config = config;
         collapsed_tiles = 0;
-        state_changed = true;
 
-        int line_index = 0;
         std::string line;
         std::stringstream config_stream(config);
-
         char empty_chars[3] = {'.', '0', ' '};
-        while (std::getline(config_stream, line, ',')) {
-            for (int i = 0; i < 9; i++) {
-                Vector2 pos(line_index, i);
 
-                char value = line[i];
+        int row_index = 0;
+        while (std::getline(config_stream, line, ',')) {
+            for (int column_index=0; column_index<9; column_index++) {
+                char value = line[column_index];
                 bool is_empty = (std::find(std::begin(empty_chars), std::end(empty_chars), value) != std::end(empty_chars));
 
-                if (is_empty) { this->board_state[line_index][i] = Tile(pos); }        
-                else          { this->board_state[line_index][i] = Tile(pos, value - '0'); collapsed_tiles++; }
+                Vector2 pos(row_index, column_index);
+                Tile tile = is_empty ? Tile(pos) : Tile(pos, (value - '0') - 1);
+
+                board_state[row_index][column_index] = tile;
+                if (tile.isCollapsed()) {
+                    updateBoard(row_index, column_index, pos.toSquareIndex(), tile.value);
+                }
             }
-            line_index++;
+            row_index++;
         }
-        _initReferences();
     }
-    Board() = default;
 
     void show() {
-        for (int row=0; row<9; row++) {
-            for (int col=0; col<9; col++) {
-                int value = this->board_state[row][col].value;
-                std::cout << ((value == 0) ? "." : std::to_string(value));
+        for (int row = 0; row < 9; row++) {
+            for (int column = 0; column < 9; column++) {
+                int value = board_state[row][column].value;
+                std::cout << ((value == -1) ? "." : std::to_string(value+1));
             }
             std::cout << "\n";
         }
+        std::cout << "\n";
     }
-    bool solve(){
-        while (!isSolved() && state_changed) {
-            state_changed = false;
-            prune();
-            std::cout << "Progress: " << collapsed_tiles << "/81" << std::endl;
+
+    bool isSolved() {
+        return collapsed_tiles == 81;
+    }
+
+    bool solve() {
+        bool state_changed = true;
+
+        int debug_limit = 2;
+        while (!isSolved() && state_changed && debug_limit > 0) {
+            state_changed = pruneTiles();
+            collapseTiles();
+            show();
+
+            debug_limit--;
         }
 
         if (isSolved()) { return true; }
         else { return false; }
     }
-    bool isSolved(){
-        return collapsed_tiles == 81;
-    }
-
-    std::vector<Board> branch(){
-        auto attempts_start = std::begin(branch_attempts);
-        auto attempts_end = std::end(branch_attempts);
-
-        for (int row=0; row<9; row++) {
-            for (int col=0; col<9; col++) {
-                Tile tile = this->board_state[row][col];
-                int index = tile.position.to_index();
-
-                auto search = std::find(attempts_start, attempts_end, index);
-                bool new_branch = (search == attempts_end);
-
-                if (!tile.isCollapsed() && new_branch) {
-                    std::vector<Board> new_boards = {};
-                    for (int state : tile.get_possible_states()) {
-                        Board new_board = create_branch(tile.position, state);
-                        new_boards.push_back(new_board);
-                    }
-                    return new_boards;
-                }
-            }
-        }
-
-        return { };
-    }
-
 
 private:
-    Tile board_state[9][9];
-
-    std::string config;
-    std::vector<int> branch_attempts;
-
-    int collapsed_tiles;
-    bool state_changed;
-
-    Tile* rows[9][9];
-    Tile* columns[9][9];
-    Tile* squares[9][9];
-
-    void _initReferences(){
-        for (int row_index = 0; row_index < 9; row_index++) {
-            for (int column_index = 0; column_index < 9; column_index++) {
-                Tile* tile_ptr = &this->board_state[row_index][column_index];
-
-                int square_index = 3 * floor(row_index / 3) + floor(column_index / 3);
-                int square_position = 3 * (row_index % 3) + (column_index % 3);
-
-                rows[row_index][column_index] = tile_ptr;
-                columns[column_index][row_index] = tile_ptr;
-                squares[square_index][square_position] = tile_ptr;
-            }
-        }
+    void updateBoard(int row, int column, int square, int state) {
+        //std::cout << "Adding " << std::to_string(state) << " at (" << std::to_string(row);
+        //std::cout << ", " << std::to_string(column) << ", " << std::to_string(square) << ")\n";
+        //std::cout << "Removing: (" + std::to_string(tile.position.row) + ", " + std::to_string(tile.position.column) + "): " + std::to_string(tile.value) + "\n";
+        rows[row][state]       = true;
+        columns[column][state] = true;
+        squares[square][state] = true;
     }
 
-    void pruneTiles(Tile* tiles[9]){
-        std::vector<int> present_values;
-        for (int i=0; i < 9; i++) { 
-            int value = tiles[i] -> value;
-            if (value > 0) {
-                present_values.push_back(value);
-            } 
-        }
+    bool pruneTiles() {
+        bool state_changed = false;
 
-        for (int i=0; i<9; i++) {
-            if (!tiles[i] -> isCollapsed()) {
-                for (int value : present_values) {
-                    bool did_collapse = tiles[i] -> collapseState(value);
+        for (int row_index = 0; row_index < 9; row_index++) {
+            for (int column_index = 0; column_index < 9; column_index++) {
+                Tile *tile =&board_state[row_index][column_index];
+                Vector2 pos = tile->position;
 
-                    if (did_collapse) {
-                        collapsed_tiles++;
-                        state_changed = true;
+                for (int state = 0; state < 9; state++) {
+                    if (rows[row_index][state] || columns[column_index][state] || squares[pos.toSquareIndex()][state]) {
+                        //std::cout << std::to_string(state) << ": " << rows[row_index][state] << " " << columns[column_index][state] << " " <<  squares[pos.toSquareIndex()][state] << "\n";
+                        bool did_collapse = tile -> collapseState(state);
+                        
+                        if (row_index == 0 && column_index == 0){ std::cout << std::to_string(column_index) << ": " << state << std::endl; }
+                        if (did_collapse) { 
+                            state_changed = true; 
+                            collapsed_tiles++;
+                        }
                     }
+                }
+            }
+        } 
+
+        return state_changed;
+    }
+
+    void collapseTiles() {
+        for (int row_index = 0; row_index < 9; row_index++) {
+            for (int column_index = 0; column_index < 9; column_index++) {
+                Tile tile = board_state[row_index][column_index];
+                if (tile.isCollapsed()) {
+                    updateBoard(row_index, column_index, tile.position.toSquareIndex(), tile.value);
                 }
             }
         }
     }
-    void prune() {
-        for (int index = 0; index < 9; index++) {
-            pruneTiles(rows[index]);
-            pruneTiles(columns[index]);
-            pruneTiles(squares[index]);
-        }
-    }
 
-    Board create_branch(Vector2 pos, int state) {
-        Board new_board { config };
-        new_board.board_state[pos.row][pos.column] = Tile(pos, state);
-        return new_board;
-    }
+    Tile board_state[9][9];
+
+    // Stores the possible values in each row/column/square (i.e. rows[row_index][n] == row 'row_index' has an 'n' in it)
+    bool rows   [9][9];           
+    bool columns[9][9];
+    bool squares[9][9];
+
+    int collapsed_tiles;
+    std::string initial_config;
 };
+
 
 
 Board solve(Board board) {
@@ -253,7 +237,7 @@ Board solve(Board board) {
 
         if (got_solved) { return head_board; }
 
-        std::vector<Board> branches = head_board.branch();
+        std::vector<Board> branches = {};//head_board.branch();
         if (branches.empty()) {
             board_stack.pop();
         } else {
@@ -269,24 +253,25 @@ Board solve(Board board) {
 
 int main() {
     Board easy   { "    345  ,  89   3 ,3    2789,2 4  6815,    4    ,8765  4 2,7523    6, 1   79  ,  942    " };
-    Board medium { "   4 6 9 ,     3  5,45     86,6 2 74  1,    9    ,9  56 7 8,71     64,3  6     , 6 9 2   " };
+    //Board medium { "   4 6 9 ,     3  5,45     86,6 2 74  1,    9    ,9  56 7 8,71     64,3  6     , 6 9 2   " };
     //Board hard   { "9 3  42  ,4 65     ,  28     ,     5  4, 67 4 92 ,1  9     ,     87  ,     94 3,  83  6 1" };
     //Board evil   { "  9      ,384   5  ,    4 3  ,   1  27 ,2  3 4  5, 48  6   ,  6 1    ,  7   629,     5   " };
 
-    // This doesnt work!!!!!!!!
-    Board solved = solve(easy);
+    easy.show();
+    easy.solve();
+    return 0;
 
-    if (solved.isSolved()) {
-        solved.show();
-    } else {
-        std::cout << "Puzzle is unsolvable!";
-    }
-    std::cout << "\n\n";
+    //if (solved.isSolved()) {
+    //    solved.show();
+    //} else {
+    //    std::cout << "Puzzle is unsolvable!";
+    //}
+    //std::cout << "\n\n";
 
 
     // THIS does though!
-    easy.solve();
-    easy.show();
+    //easy.solve();
+    //easy.show();
 
 
     return 0;
