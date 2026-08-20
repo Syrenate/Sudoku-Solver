@@ -56,6 +56,3 @@ class Tile:
             for value in range(1, 10):
                 if self.states[value-1]: return value
         return 0
-
-
-    

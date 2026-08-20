@@ -1,5 +1,5 @@
 import time, csv
-from Board import Board
+from Solver.Board import Board
 
 # TO BE DONE: Random puzzle generator, GUI to interact with the puzzle.
 

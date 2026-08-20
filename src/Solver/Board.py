@@ -1,12 +1,4 @@
-from copy import deepcopy
-from Components import Tile, Region
-from random import randrange
-
-### Version 2
-# Main problem with V1 was the absurd lack of attention to readability and a coherent structure. 
-# So when branching didnt work, it was a clusterfuck to debug. Won't make that mistake again.
-
-
+from .Components import Tile, Region
 
 class Board:
     def __init__(self, config: list[str]):
