@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QApplication
-from src.pyside import MainWindow
+from src.pyside import MainWindow, Vector2
 
 if __name__ == "__main__":
     app = QApplication([])
