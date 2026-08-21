@@ -6,8 +6,6 @@ This is my implementation of a Sudoku puzzle solver, with preset puzzles and cus
 </p>
 
 ## Instructions
-Run `main.py` in the terminal, it will open a separate Qt window. Click to select a tile, enter a number to change the value, and press backspace to remove a value. Then press solve!
+Requires latest python release [`≥ 3.14.4`] and the [pyside6](https://wiki.qt.io/Qt_for_Python) framework for the GUI.
 
-## TODO:
-- Add an actual functioning GUI lol.
-- Optimize board searching (i.e reduce redundant searches with human-derived algorithms).
+Run `main.py` in the terminal, it will open a separate Qt window. Click to select a tile, enter a number to change the value, and press backspace to remove a value. Then press solve!
