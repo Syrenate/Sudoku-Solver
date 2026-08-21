@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QApplication
-from src.pyside import MainWindow, Vector2
+from src.pyside import MainWindow
 
 if __name__ == "__main__":
     app = QApplication([])
@@ -9,8 +9,6 @@ if __name__ == "__main__":
 
 
     window = MainWindow()
-
-    #window.LoadPuzzle(window.puzzle)
 
     window.show()
     app.exec()

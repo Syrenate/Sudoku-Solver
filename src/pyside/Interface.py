@@ -1,23 +1,16 @@
 from PySide6.QtWidgets import (
-    QApplication, 
     QMainWindow, 
     QWidget, 
     QPushButton, 
     QLabel, 
-    QGridLayout, 
-    QMenuBar, 
-    QMenu,
-    QFrame,
-    QVBoxLayout
+    QGridLayout
 )
-from PySide6.QtGui import QColor, QPalette
-from PySide6.QtCore import Slot, QObject, QEvent, QSize, Qt, QRect
+from PySide6.QtCore import QSize, Qt
 
 from enum import Enum
 from math import floor; 
-import random, sys
 
-from src.Solver import Board, Tile, solveBoard
+from src.Solver import Board, solveBoard
 
 
 class Vector2:
