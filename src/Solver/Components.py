@@ -6,6 +6,7 @@ class Region:
 
     def __init__(self):
         self.values = [False for i in range(9)]
+        self.present_values = 0
 
     def __str__(self):
         output = ""
@@ -14,7 +15,9 @@ class Region:
         return output
 
     def addValue(self, value: int):
-        self.values[value-1] = True
+        if self.values[value-1] == False:
+            self.values[value-1] = True
+            self.present_values += 1
 
     def contains(self, value: int):
         return self.values[value-1]

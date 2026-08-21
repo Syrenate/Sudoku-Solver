@@ -21,9 +21,19 @@ from src.Solver import Board, Tile, solveBoard
 
 
 class Vector2:
-    def __init__(self, x:int, y:int):
-        self.x = x
-        self.y = y
+    def __init__(self, row:int, col:int):
+        self.row = row
+        self.col = col
+
+    def __str__(self):
+        return f"({self.row},{self.col})"
+
+    def nextTile(self):
+        if self.row == 8 and self.col == 8: return self
+
+        new_row = self.row + (1 if self.col == 8 else 0)
+        new_col = (self.col + 1) % 9
+        return Vector2(new_row, new_col)
 
 class Orientation(Enum):
     VERTICAL = 0
@@ -32,28 +42,25 @@ class Orientation(Enum):
 
 
 class BoardTile(QPushButton):
-    def __init__(self, board: PuzzleBoard, x: int, y: int, init_label: str = " "):
+    def __init__(self, board: PuzzleBoard, row: int, col: int, init_label: str = " "):
         super().__init__()
         self.windowTitle="BoardTile"
-        self.pos = Vector2(x, y)
+        self.pos = Vector2(row, col)
         self.text = init_label
         self.board = board
 
         self.setFixedSize(QSize(50, 50))
-
         self.clicked.connect(self.change_target)
 
     def change_target(self):
-        board = self.board
-        if board.target == None or board.target != self.pos: 
-            board.target = self.pos
-        else: board.target = None
+        self.board.setTarget(self.pos)
 
 
 class PuzzleBoard(QWidget):
-    def __init__(self, parent:MainWindow):
+    def __init__(self, parent:MainWindow, init_config = None):
         super().__init__()
         self.parent=parent
+        self.config = ["         " for i in range(9)] if init_config == None else init_config
 
         self.layout = QGridLayout()
         self.layout.setHorizontalSpacing(10)
@@ -70,38 +77,66 @@ class PuzzleBoard(QWidget):
                 for y in range(3):
                     for x in range(3):
                         board_pos = Vector2(3*row + y, 3*column + x)
-                        button = BoardTile(self, board_pos.y, board_pos.x)
+                        button = BoardTile(self, board_pos.row, board_pos.col)
+                        button.setStyleSheet("background-color:white")
                         square_layout.addWidget(button, y, x)
 
                 self.layout.addLayout(square_layout, row, column)
-
         self.setLayout(self.layout)
 
-    def set_tile(self, pos: Vector2, value: int):
-        square_pos = Vector2(floor(pos.x/3), floor(pos.y/3))
-        widget_square = self.layout.itemAtPosition(square_pos.y, square_pos.x).layout()
-        widget_item = widget_square.itemAtPosition(pos.y % 3, pos.x % 3)
+        self.displayConfig()
 
-        widget_item.widget().setText(str(value))
-        new_config = self.parent.board.generateNewConfig(Tile(pos.y, pos.x, value))
-        self.parent.board = Board(new_config)
+    def getTile(self, pos: Vector2):
+        square_pos = Vector2(floor(pos.row/3), floor(pos.col/3))
+        widget_square = self.layout.itemAtPosition(square_pos.row, square_pos.col).layout()
+        widget_item = widget_square.itemAtPosition(pos.row % 3, pos.col % 3)
+        return widget_item.widget()
 
 
-    def keyPressEvent(self, event):
-        print("Detected")
-        text = event.text()
-        backspace_event_key = 16777219
+    def addTile(self, pos: Vector2, value: str):
+        row = self.config[pos.row]
+        self.config[pos.row] = row[:pos.col] + value + row[pos.col+1:]
+        self.displayTile(self.target, value)
 
-        new_text = None
-        try: 
-            if int(text) in range(1, 10): new_text = text
-        except:
-            if event.key() == backspace_event_key: new_text = " "
 
-        target = self.target
-        if target != None and new_text != None: 
-            print(f"Setting {target} to {new_text}")
-            self.set_tile(target, new_text)
+    def displayTile(self, pos: Vector2, value: str):
+        tile = self.getTile(pos)
+        tile.setText(value)
+
+    def displayConfig(self):
+        for x, row in enumerate(self.config):
+            for y, value in enumerate(row):
+                self.displayTile(Vector2(x,y), value)
+        
+
+    def setTarget(self, pos: Vector2):
+        if self.target != None:
+            old_target_tile = self.getTile(self.target)
+            old_target_tile.setStyleSheet("background-color:white")
+
+        if pos != None:
+            new_target_tile = self.getTile(pos)
+            new_target_tile.setStyleSheet("background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #dddddd, stop: 1 #dddddd);")
+            self.target = pos
+
+
+
+    def SolveBoard(self):
+        board = Board(self.config)
+        solution = solveBoard(board)
+
+        if solution != None: 
+            self.config = solution.generateNewConfig()
+            self.parent.addDebug("Solution found!", "green")
+            self.parent
+        else:
+            self.parent.addDebug("No solution found!", "red")
+        self.displayConfig()
+
+    def ClearBoard(self):
+        self.parent.addDebug("", "black")
+        self.config = ["         " for i in range(9)]
+        self.displayConfig()
 
 
 class PuzzleInterface(QWidget):
@@ -133,52 +168,42 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Sudoku Solver"); title.setObjectName("Title")
         self.layout.addWidget(title, 0, 0, alignment=Qt.AlignmentFlag.AlignJustify)
-        #title = QLabel("A python app by Lyric"); title.setObjectName("Description")
-        #self.layout.addWidget(title, 1, 0, alignment=Qt.AlignmentFlag.AlignJustify)
 
 
-        self.board = Board("  9      ,384   5  ,    4 3  ,   1  27 ,2  3 4  5, 48  6   ,  6 1    ,  7   629,     5   ".split(","))
-        self.puzzle_board = PuzzleBoard(parent=self);         
-        self.layout.addWidget(self.puzzle_board, 2, 0, alignment=Qt.AlignmentFlag.AlignJustify)
+        config = "  9      ,384   5  ,    4 3  ,   1  27 ,2  3 4  5, 48  6   ,  6 1    ,  7   629,     5   ".split(",")
+
+        self.puzzle_board = PuzzleBoard(parent=self, init_config=config);         
+        self.layout.addWidget(self.puzzle_board, 1, 0, alignment=Qt.AlignmentFlag.AlignJustify)
+
+        self.puzzle_debug = QLabel(""); self.puzzle_debug.setObjectName("Debug")
+        self.layout.addWidget(self.puzzle_debug, 2, 0, alignment = Qt.AlignmentFlag.AlignJustify)
+
         self.puzzle_interface = PuzzleInterface(parent=self); 
         self.layout.addWidget(self.puzzle_interface, 3, 0, alignment=Qt.AlignmentFlag.AlignJustify)
         
-        self.LoadBoard()
         holding_widget = QWidget()
         holding_widget.setLayout(self.layout)
         self.setCentralWidget(holding_widget)
-        
 
-    def LoadBoard(self):
-        for y, row in enumerate(self.board.tiles):
-            for x, tile in enumerate(row):
-                tile_value = tile.getValue()
-                print(f"({y},{x}): {tile_value}")
+    def keyPressEvent(self, event):
+        text = event.text()
+        backspace_event_key = 16777219
 
-                tile_val = ' ' if tile_value == 0 else str(tile_value)
-                self.puzzle_board.set_tile(Vector2(x,y), tile_val)
+        if self.puzzle_board.target != None:
+            try: 
+                if int(text) in range(1, 10): 
+                    self.puzzle_board.addTile(self.puzzle_board.target, text)
+                    self.puzzle_board.setTarget(self.puzzle_board.target.nextTile())
+            except:
+                if event.key() == backspace_event_key: 
+                    self.puzzle_board.addTile(self.puzzle_board.target, " ")
 
     def SolveBoard(self):
-        solution = solveBoard(self.board)
-        if solution != None: self.board = solution
-        self.LoadBoard()
+        self.puzzle_board.SolveBoard()
 
     def ClearBoard(self):
-        self.board = Board.empty()
-        self.LoadBoard()
+        self.puzzle_board.ClearBoard()
 
-
-
-if __name__ == "__main__":
-    app = QApplication([])
-    with open("res/style.qss", "r") as file:
-        style = file.read()
-        app.setStyleSheet(style)
-
-
-    window = MainWindow()
-
-    #window.LoadPuzzle(window.puzzle)
-
-    window.show()
-    app.exec()
+    def addDebug(self, text: str, color: str):
+        self.puzzle_debug.setText(text)
+        self.puzzle_debug.setStyleSheet(f"color:{color}")

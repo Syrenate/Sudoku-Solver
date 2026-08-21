@@ -95,13 +95,26 @@ class Board:
     def isSolved(self):
         return self.collapsed_tiles == 81
 
-    def solve(self) -> bool:
-        state_changed = True
-        while state_changed and not self.isSolved():
-            state_changed = self.pruneBoard()
+    def isValid(self):
+        for row_index in range(9):
+            for col_index in range(9):
+                tile = self.tiles[row_index][col_index]
+                if tile.possible_values == 0: return False
 
+        for index in range(9):
+            if self.rows[index].present_values < 9: return False
+            if self.columns[index].present_values < 9: return False
+            if self.squares[index].present_values < 9: return False
+
+        return True
+
+    def solve(self) -> bool:
+        state_changed = self.pruneBoard()
+        while state_changed:
             if self.isSolved():
-                return True
+                return self.isValid()
+            
+            state_changed = self.pruneBoard()
 
         return False
 
@@ -138,16 +151,19 @@ class Board:
 
         return branches
 
-    def generateNewConfig(self, new_tile: Tile):
+    def generateNewConfig(self, new_tile: Tile = None):
         new_config = []
         for row_index in range(9):
             row = ""
             for col_index in range(9):
                 tile = self.tiles[row_index][col_index]
 
-                if tile.isCollapsed() or (row_index == new_tile.row and col_index == new_tile.column):
-                    row += str(tile.getValue() if tile.isCollapsed() else new_tile.getValue())
-                else: row += "."
+                if new_tile == None:
+                    row += str(tile.getValue()) if tile.isCollapsed() else "."
+                else:
+                    if tile.isCollapsed() or (row_index == new_tile.row and col_index == new_tile.column):
+                        row += str(tile.getValue() if tile.isCollapsed() else new_tile.getValue())
+                    else: row += "."
 
             new_config.append(row)
             

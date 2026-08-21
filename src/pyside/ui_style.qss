@@ -1,6 +1,19 @@
 QPushButton {
-    font-size: 20px
+    font-size: 20px;
+    background-color:#ffffff;
+}
+QPushButton:hover {
+    font-size: 20px;
+    background-color:#dddddd;
+}
+QPushButton:pressed {
+    font-size: 20px;
+    background-color:#dddddd;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #bbbbbb, stop: 1 #bbbbbb);
 }
 
 QLabel#Title { font-size: 40px }
 QLabel#Description { font-size: 15px }
+QLabel#Debug { font-size: 20px }
+
+QPushButton:clicked { background-color: white }
